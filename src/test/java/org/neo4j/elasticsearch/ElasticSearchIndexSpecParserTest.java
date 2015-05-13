@@ -5,15 +5,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 import org.neo4j.graphdb.Label;
 
-
 public class ElasticSearchIndexSpecParserTest {
-  
+
     @Test
     public void testParseIndexSpec() throws ParseException {
         Map rv = ElasticSearchIndexSpecParser.parseIndexSpec("index_name:Label(foo,bar,quux),other_index_name:OtherLabel(baz,quuxor)");
@@ -24,7 +24,7 @@ public class ElasticSearchIndexSpecParserTest {
         assertEquals(2, rv.size());
         assertArrayEquals(new String[] { "Label", "OtherLabel" }, r.toArray());
     }
-    
+
     @Test
     public void testIndexSpecBadSyntax() throws ParseException {
         Map rv = ElasticSearchIndexSpecParser.parseIndexSpec("index_name:Label(foo,bar");
@@ -34,11 +34,11 @@ public class ElasticSearchIndexSpecParserTest {
         rv = ElasticSearchIndexSpecParser.parseIndexSpec("Label");
         assertEquals(0, rv.size());
     }
-    
+
     @Test(expected=ParseException.class)
     public void testIndexSpecBadSyntaxDuplicateIndex() throws ParseException {
     	Map rv = ElasticSearchIndexSpecParser.parseIndexSpec("index_name:Label(foo,bar),index_name:Label(quux)");
     }
 
-    
+
 }
