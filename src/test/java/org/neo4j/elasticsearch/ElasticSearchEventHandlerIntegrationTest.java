@@ -5,6 +5,8 @@ import io.searchbox.client.JestClientFactory;
 import io.searchbox.client.JestResult;
 import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.core.Get;
+
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +23,8 @@ import static org.junit.Assert.assertEquals;
 import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
-public class ElasticSearchEventHandlerIntegrationTest {
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes = 1)
+public class ElasticSearchEventHandlerIntegrationTest extends AbstractIntegrationTest {
 
     public static final String LABEL = "MyLabel";
     public static final String INDEX = "my_index";
@@ -31,11 +34,7 @@ public class ElasticSearchEventHandlerIntegrationTest {
 
     @Before
     public void setUp() throws Exception {
-        JestClientFactory factory = new JestClientFactory();
-        factory.setHttpClientConfig(new HttpClientConfig
-                .Builder("http://localhost:9200")
-                .build());
-        client = factory.getObject();
+        super.setUp();
         db = new TestGraphDatabaseFactory()
                 .newImpermanentDatabaseBuilder()
                 .setConfig(config())
@@ -50,7 +49,7 @@ public class ElasticSearchEventHandlerIntegrationTest {
 
     @After
     public void tearDown() throws Exception {
-        client.shutdownClient();
+        super.tearDown();
         db.shutdown();
     }
 

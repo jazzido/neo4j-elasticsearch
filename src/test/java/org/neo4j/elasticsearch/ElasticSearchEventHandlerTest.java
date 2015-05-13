@@ -7,6 +7,7 @@ import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.core.Get;
 import io.searchbox.indices.CreateIndex;
 
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -21,23 +22,18 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-public class ElasticSearchEventHandlerTest {
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes = 1)
+public class ElasticSearchEventHandlerTest extends AbstractIntegrationTest {
 
     public static final String INDEX = "test-index";
     public static final String LABEL = "Label";
     private ElasticSearchEventHandler handler;
     private GraphDatabaseService db;
-    private JestClient client;
     private TestLogger logger;
 
     @Before
     public void setUp() throws Exception {
-        JestClientFactory factory = new JestClientFactory();
-        factory.setHttpClientConfig(new HttpClientConfig
-                .Builder("http://localhost:9200")
-                .multiThreaded(true)
-                .build());
-        client = factory.getObject();
+        super.setUp();
         logger = new TestLogger();
         db = new TestGraphDatabaseFactory().newImpermanentDatabase();
         
@@ -47,7 +43,7 @@ public class ElasticSearchEventHandlerTest {
 
     @After
     public void tearDown() throws Exception {
-        client.shutdownClient();
+        super.tearDown();
         db.unregisterTransactionEventHandler(handler);
         db.shutdown();
     }
@@ -140,6 +136,4 @@ public class ElasticSearchEventHandlerTest {
         assertEquals(true, response.getValue("found"));
         assertEquals("quux", response.getSourceAsObject(Map.class).get("foo"));
     }
-    
-    
 }
