@@ -39,6 +39,7 @@ public class ElasticSearchExtension implements Lifecycle {
             enabled = false;
 		}
 		logger.info("Elasticsearch Integration: Running " + hostName + " - " + indexSpec);
+		System.out.println(indexSpec);
         this.gds = gds;
         this.logger = logger;
         this.hostName = hostName;

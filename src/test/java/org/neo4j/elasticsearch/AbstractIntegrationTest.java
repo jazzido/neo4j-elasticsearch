@@ -11,12 +11,11 @@ import org.elasticsearch.rest.RestController;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 
 /**
  * @author Dogukan Sonmez
  */
-@Ignore
+
 public abstract class AbstractIntegrationTest extends ElasticsearchIntegrationTest {
 
     protected final JestClientFactory factory = new JestClientFactory();

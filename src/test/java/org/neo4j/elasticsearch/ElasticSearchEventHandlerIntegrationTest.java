@@ -25,15 +25,14 @@ import static org.junit.Assert.assertEquals;
 import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes = 1)
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numDataNodes = 1)
 public class ElasticSearchEventHandlerIntegrationTest extends AbstractIntegrationTest {
 
     public static final String LABEL = "MyLabel";
     public static final String INDEX = "my_index";
     public static final String INDEX_SPEC = INDEX + ":" + LABEL + "(foo)";
     private GraphDatabaseService db;
-    private JestClient client;
-
+    
     @Before
     public void setUp() throws Exception {
         super.setUp();
@@ -48,15 +47,14 @@ public class ElasticSearchEventHandlerIntegrationTest extends AbstractIntegratio
 
     private Map<String, String> config() {
         return stringMap(
-                "elasticsearch.host_name", "http://localhost:9200",
+                "elasticsearch.host_name", "http://localhost:" + getPort(),
                 "elasticsearch.index_spec", INDEX_SPEC);
     }
 
     @After
     public void tearDown() throws Exception {
-        super.tearDown();
         client.execute(new DeleteIndex.Builder(INDEX).build());
-        client.shutdownClient();
+        super.tearDown();
         db.shutdown();
     }
 

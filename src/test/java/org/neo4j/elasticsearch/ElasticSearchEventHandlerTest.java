@@ -24,7 +24,7 @@ import java.util.Map;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 
-@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.SUITE, numDataNodes = 1)
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numDataNodes = 1)
 public class ElasticSearchEventHandlerTest extends AbstractIntegrationTest {
 
     public static final String INDEX = "test-index";
@@ -50,11 +50,11 @@ public class ElasticSearchEventHandlerTest extends AbstractIntegrationTest {
 
     @After
     public void tearDown() throws Exception {
-        super.tearDown();
         client.execute(new DeleteIndex.Builder(INDEX).build());
-        client.shutdownClient();
         db.unregisterTransactionEventHandler(handler);
         db.shutdown();
+        super.tearDown();
+
     }
 
     @Test
