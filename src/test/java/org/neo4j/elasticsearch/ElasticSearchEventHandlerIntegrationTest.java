@@ -1,9 +1,6 @@
 package org.neo4j.elasticsearch;
 
-import io.searchbox.client.JestClient;
-import io.searchbox.client.JestClientFactory;
 import io.searchbox.client.JestResult;
-import io.searchbox.client.config.HttpClientConfig;
 import io.searchbox.core.Get;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import io.searchbox.indices.CreateIndex;
@@ -15,16 +12,14 @@ import org.junit.Test;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.kernel.impl.util.TestLogger;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
 import java.util.Map;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
+//@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numDataNodes = 1)
 @ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST, numDataNodes = 1)
 public class ElasticSearchEventHandlerIntegrationTest extends AbstractIntegrationTest {
 
@@ -54,8 +49,8 @@ public class ElasticSearchEventHandlerIntegrationTest extends AbstractIntegratio
     @After
     public void tearDown() throws Exception {
         client.execute(new DeleteIndex.Builder(INDEX).build());
-        super.tearDown();
         db.shutdown();
+        super.tearDown();
     }
 
     @Test

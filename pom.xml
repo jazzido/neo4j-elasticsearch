@@ -53,6 +53,7 @@
 			<artifactId>jest</artifactId>
 			<version>${jest.version}</version>
 		</dependency>
+
 		<dependency>
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j-kernel</artifactId>
@@ -64,28 +65,33 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.11</version>
-			<scope>test</scope>
+ 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j-kernel</artifactId>
 			<version>${neo4j.version}</version>
 			<type>test-jar</type>
-			<scope>test</scope>
+ 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j</groupId>
 			<artifactId>neo4j-io</artifactId>
 			<version>${neo4j.version}</version>
-				<type>test-jar</type>
-			<scope>test</scope>
+		    <type>test-jar</type>
+ 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.lucene</groupId>
 			<artifactId>lucene-test-framework</artifactId>
-			<version>${lucene.version}</version>
-			<scope>test</scope>
+ 			<version>${lucene.version}</version>
+ <!-- 			<scope>test</scope> -->
 		</dependency>
+		<dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-codecs</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
 		<dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-all</artifactId>
@@ -102,14 +108,14 @@
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
+			<!-- <scope>test</scope> -->
 			<type>test-jar</type>
 		</dependency>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
 			<artifactId>elasticsearch</artifactId>
 			<version>${elasticsearch.version}</version>
-			<scope>test</scope>
+			<!-- <scope>test</scope> -->
 		</dependency>
 	</dependencies>
 </project>
