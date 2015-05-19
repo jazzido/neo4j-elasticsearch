@@ -13,12 +13,7 @@ import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.kernel.impl.util.StringLogger;
 
-
-import com.graphaware.common.policy.InclusionPolicies;
-import com.graphaware.common.policy.NodeInclusionPolicy;
-import com.graphaware.common.policy.none.IncludeNoRelationships;
 import com.graphaware.tx.event.improved.api.Change;
-import com.graphaware.tx.event.improved.api.FilteredTransactionData;
 import com.graphaware.tx.event.improved.api.ImprovedTransactionData;
 import com.graphaware.tx.event.improved.api.LazyTransactionData;
 
@@ -35,7 +30,6 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
     private final GraphDatabaseService gds;
     private final Map<Label, List<ElasticSearchIndexSpec>> indexSpecs;
     private final Set<Label> indexLabels;
-    private final InclusionPolicies inclusionPolicies;
     private boolean useAsyncJest = true;
     
 
@@ -45,35 +39,34 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         this.indexLabels = indexSpec.keySet();
         this.logger = logger;
         this.gds = gds;
-        this.inclusionPolicies = InclusionPolicies.all()
-        		.with(new NodeInclusionPolicy() {
-        			@Override
-        			public boolean include(Node node) {
-        				for (Label l: node.getLabels()) {
-        					if (indexLabels.contains(l)) return true;
-        				}
-        				return false;
-        			}
-        		})
-        		.with(IncludeNoRelationships.getInstance());
     }
 
     @Override
     public Collection<BulkableAction> beforeCommit(TransactionData transactionData) throws Exception {
 
-    	ImprovedTransactionData improvedTransactionData
-                = new FilteredTransactionData(new LazyTransactionData(transactionData), inclusionPolicies);
-    	
+    	ImprovedTransactionData improvedTransactionData = new LazyTransactionData(transactionData);
         Map<IndexId, BulkableAction> actions = new HashMap<>(1000);
-        
+
         for (Node node: improvedTransactionData.getAllCreatedNodes()) {
-        	actions.putAll(indexRequests(node));
+        	if (hasLabel(node)) {
+        		actions.putAll(indexRequests(node));
+        	}
         }
         for (Node node: improvedTransactionData.getAllDeletedNodes()) {
-        	actions.putAll(deleteRequests(node));
+        	if (hasLabel(node)) {
+        		actions.putAll(deleteRequests(node));
+        	}
         }
         for (Change<Node> nodeChange: improvedTransactionData.getAllChangedNodes()) {
-        	actions.putAll(indexRequests(nodeChange.getCurrent()));
+        	Set<Label> s = improvedTransactionData.removedLabels(nodeChange.getCurrent());
+        	if (!s.isEmpty()) {
+        		for (Label removedLabel: s) {
+        			actions.putAll(deleteRequests(nodeChange.getCurrent(), removedLabel));
+        		}
+        	}
+        	else {
+        		actions.putAll(indexRequests(nodeChange.getCurrent()));
+        	}
         }
  
         return actions.isEmpty() ? Collections.<BulkableAction>emptyList() : actions.values();
@@ -99,7 +92,13 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
             logger.warn("Error updating ElasticSearch ", e);
         }
     }
-
+    
+    private boolean hasLabel(Node node) {
+        for (Label l: node.getLabels()) {
+            if (indexLabels.contains(l)) return true;
+        }
+        return false;
+    }
     
     private Map<IndexId, Index> indexRequests(Node node) {
         HashMap<IndexId, Index> reqs = new HashMap<>();
@@ -117,6 +116,20 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
             }
         }
         return reqs;
+    }
+    
+    private Map<IndexId, Delete> deleteRequests(Node node, Label removedLabel) {
+    	HashMap<IndexId, Delete> reqs = new HashMap<>();
+    	if (!indexSpecs.containsKey(removedLabel)) {
+    		return reqs;
+    	}
+    	
+    	for (ElasticSearchIndexSpec spec: indexSpecs.get(removedLabel)) {
+    		String id = id(node), indexName = spec.getIndexName();
+    		reqs.put(new IndexId(indexName, id),
+    				new Delete.Builder(id).index(indexName).type(removedLabel.name()).build());
+    	}	
+    	return reqs;
     }
 
     private Map<IndexId, Delete> deleteRequests(Node node) {

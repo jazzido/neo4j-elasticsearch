@@ -13,10 +13,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.util.TestLogger;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
+import java.util.Iterator;
 import java.util.Map;
 
 import static java.util.Arrays.asList;
@@ -161,7 +163,52 @@ public class ElasticSearchEventHandlerTest {
         source = response.getSourceAsObject(Map.class);
         assertFalse(source.containsKey("foo"));
         assertEquals("quux", source.get("bar"));
+    }
+    
+    @Test
+    public void testRemoveLabel() throws Exception {
+        Transaction tx = db.beginTx();
+        org.neo4j.graphdb.Node node = db.createNode(DynamicLabel.label(LABEL), DynamicLabel.label("OtherLabel"));
+        String id = String.valueOf(node.getId());
+        node.setProperty("foo","baz");
+        tx.success();tx.close();
         
+        JestResult response = client.execute(new Get.Builder(INDEX, id).build());
+        Map source = response.getSourceAsObject(Map.class);
+        assertEquals(true,response.isSucceeded());
+        assertEquals("baz", source.get("foo"));
+        
+        tx = db.beginTx();
+        node = db.getNodeById(Integer.parseInt(id));
+        node.removeLabel(DynamicLabel.label(LABEL));
+        tx.success(); tx.close();
+        
+        response = client.execute(new Get.Builder(INDEX, id).build());
+        source = response.getSourceAsObject(Map.class);
+        assertEquals(false, response.getValue("found"));
+    }
+    
+    @Test
+    public void testRemoveUntrackedLabel() throws Exception {
+    	Transaction tx = db.beginTx();
+        org.neo4j.graphdb.Node node = db.createNode(DynamicLabel.label(LABEL), DynamicLabel.label("OtherLabel"));
+        String id = String.valueOf(node.getId());
+        node.setProperty("foo","baz");
+        tx.success();tx.close();
+        
+        JestResult response = client.execute(new Get.Builder(INDEX, id).build());
+        Map source = response.getSourceAsObject(Map.class);
+        assertEquals(true,response.isSucceeded());
+        assertEquals("baz", source.get("foo"));
+        
+        tx = db.beginTx();
+        node = db.getNodeById(Integer.parseInt(id));
+        node.removeLabel(DynamicLabel.label("OtherLabel"));
+        tx.success(); tx.close();
+        
+        response = client.execute(new Get.Builder(INDEX, id).build());
+        source = response.getSourceAsObject(Map.class);
+        assertEquals(true, response.getValue("found"));
     }
 
 
