@@ -10,7 +10,6 @@ import io.searchbox.indices.DeleteIndex;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -22,6 +21,7 @@ import java.util.Map;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 public class ElasticSearchEventHandlerTest {
 
@@ -43,7 +43,7 @@ public class ElasticSearchEventHandlerTest {
         logger = new TestLogger();
         db = new TestGraphDatabaseFactory().newImpermanentDatabase();
 
-        handler = new ElasticSearchEventHandler(client, ElasticSearchIndexSpecParser.parseIndexSpec(INDEX + ":" + LABEL + "(foo)"), logger, db);
+        handler = new ElasticSearchEventHandler(client, ElasticSearchIndexSpecParser.parseIndexSpec(INDEX + ":" + LABEL + "(foo,bar)"), logger, db);
         // don't use async Jest for testing
         handler.setUseAsyncJest(false);
         db.registerTransactionEventHandler(handler);
@@ -126,12 +126,42 @@ public class ElasticSearchEventHandlerTest {
         tx = db.beginTx();
         node = db.getNodeById(Integer.parseInt(id));
         node.setProperty("foo", "quux");
+        node.setProperty("bar", "baz");
         tx.success(); tx.close();
 
         response = client.execute(new Get.Builder(INDEX, id).type(LABEL).build());
+        Map source = response.getSourceAsObject(Map.class);
         assertEquals(true,response.isSucceeded());
         assertEquals(true, response.getValue("found"));
-        assertEquals("quux", response.getSourceAsObject(Map.class).get("foo"));
+        assertEquals("quux", source.get("foo"));
+        assertEquals("baz", source.get("bar"));
+    }
+    
+    @Test
+    public void testRemoveProperty() throws Exception {
+        Transaction tx = db.beginTx();
+        org.neo4j.graphdb.Node node = db.createNode(DynamicLabel.label(LABEL));
+        String id = String.valueOf(node.getId());
+        node.setProperty("foo","baz");
+        node.setProperty("bar", "quux");
+        tx.success();tx.close();
+        
+        JestResult response = client.execute(new Get.Builder(INDEX, id).build());
+        Map source = response.getSourceAsObject(Map.class);
+        assertEquals(true,response.isSucceeded());
+        assertEquals("baz", source.get("foo"));
+        assertEquals("quux", source.get("bar"));
+        
+        tx = db.beginTx();
+        node = db.getNodeById(Integer.parseInt(id));
+        node.removeProperty("foo");
+        tx.success(); tx.close();
+        
+        response = client.execute(new Get.Builder(INDEX, id).build());
+        source = response.getSourceAsObject(Map.class);
+        assertFalse(source.containsKey("foo"));
+        assertEquals("quux", source.get("bar"));
+        
     }
 
 

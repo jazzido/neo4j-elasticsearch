@@ -28,7 +28,7 @@ public class ElasticSearchEventHandlerIntegrationTest {
 
     public static final String LABEL = "MyLabel";
     public static final String INDEX = "my_index";
-    public static final String INDEX_SPEC = INDEX + ":" + LABEL + "(foo)";
+    public static final String INDEX_SPEC = INDEX + ":" + LABEL + "(foo,bar)";
     private GraphDatabaseService db;
     private JestClient client;
 
@@ -67,6 +67,7 @@ public class ElasticSearchEventHandlerIntegrationTest {
         org.neo4j.graphdb.Node node = db.createNode(DynamicLabel.label(LABEL));
         String id = String.valueOf(node.getId());
         node.setProperty("foo", "foobar");
+        node.setProperty("bar", "quux");
         tx.success();
         tx.close();
         
@@ -84,5 +85,6 @@ public class ElasticSearchEventHandlerIntegrationTest {
         assertEquals(asList(LABEL), source.get("labels"));
         assertEquals(id, source.get("id"));
         assertEquals("foobar", source.get("foo"));
+        assertEquals("quux", source.get("bar"));
     }
 }
