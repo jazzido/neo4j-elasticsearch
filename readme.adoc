@@ -8,6 +8,7 @@ This Neo4j Kernel Extension updates an ElasticSearch instance or cluster with ch
 
 A transaction event listener checks changed Nodes against a given label, renders the whole node as json document and indexes all changes in bulk with ES.
 
+
 === Installation
 
 * Clone this repository and run `mvn install -DskipTests`
@@ -35,15 +36,27 @@ With that in place, Neo4j will now track changes to nodes labeled
 `Person` or `Place` and keep our ES instance running on
 `localhost:9200` in sync.
 
-To perform an initial import, you can force a commit by executing a
-Cypher query like:
+To perform an initial import, you can use the provided `elasticsearch-index` shell command:
 
 ----
-MATCH n:Person
-SET n.first_name = n.first_name, n.last_name = n.last_name;
+neo4j-sh (?)$ help elasticsearch-index
 
-MATCH n:Place
-SET n.name = n.name;
+Import index specs to ElasticSearch.
+
+  -h	 ElasticSearch host name. Default is http://localhost:9200.
+  -s	 Indexing specification (eg: people:Person(first_name,last_name).
+
+neo4j-sh (?)$ elasticsearch-index -s people:Person(first_name,last_name)
+Connected to ES cluster: http://localhost:9200
+Indexing Person to index people
+
+neo4j-sh (?)$ elasticsearch-index -s people:Person(first_name,last_name)
+Connected to ES cluster: http://localhost:9200
+Indexing Person to index people
+
+neo4j-sh (?)$ elasticsearch-index -s places:Place(name)
+Connected to ES cluster: http://localhost:9200
+Indexing Place to index places
 ----
 
 === Developing
