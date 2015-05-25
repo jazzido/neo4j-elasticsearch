@@ -64,14 +64,10 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         Map<IndexId, BulkableAction> actions = new HashMap<>(1000);
 
         for (Node node: improvedTransactionData.getAllCreatedNodes()) {
-        	if (hasLabel(node)) {
-        		actions.putAll(indexRequests(node));
-        	}
+            actions.putAll(indexRequests(node));
         }
         for (Node node: improvedTransactionData.getAllDeletedNodes()) {
-        	if (hasLabel(node)) {
-        		actions.putAll(deleteRequests(node));
-        	}
+            actions.putAll(deleteRequests(node));
         }
         for (Change<Node> nodeChange: improvedTransactionData.getAllChangedNodes()) {
         	Set<Label> s = improvedTransactionData.removedLabels(nodeChange.getCurrent());
@@ -107,13 +103,6 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         } catch (Exception e) {
             logger.warn("Error updating ElasticSearch ", e);
         }
-    }
-    
-    private boolean hasLabel(Node node) {
-        for (Label l: node.getLabels()) {
-            if (indexLabels.contains(l)) return true;
-        }
-        return false;
     }
     
     private Map<IndexId, Index> indexRequests(Node node) {
@@ -261,7 +250,4 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         }
         
     }
-    
-    
-    
 }
