@@ -7,17 +7,19 @@ import io.searchbox.client.JestResultHandler;
 import io.searchbox.core.Bulk;
 import io.searchbox.core.Delete;
 import io.searchbox.core.Index;
-import io.searchbox.core.Update;
 
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.event.LabelEntry;
-import org.neo4j.graphdb.event.PropertyEntry;
 import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.kernel.impl.util.StringLogger;
 
-
-
+import com.graphaware.common.policy.InclusionPolicies;
+import com.graphaware.common.policy.NodeInclusionPolicy;
+import com.graphaware.common.policy.none.IncludeNoRelationships;
+import com.graphaware.tx.event.improved.api.Change;
+import com.graphaware.tx.event.improved.api.FilteredTransactionData;
+import com.graphaware.tx.event.improved.api.ImprovedTransactionData;
+import com.graphaware.tx.event.improved.api.LazyTransactionData;
 
 import java.util.*;
 
@@ -33,6 +35,8 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
     private final Map<Label, List<ElasticSearchIndexSpec>> indexSpecs;
     private final Set<Label> indexLabels;
     private boolean useAsyncJest = true;
+    private final InclusionPolicies inclusionPolicies;
+    
 
     public ElasticSearchEventHandler(JestClient client, Map<Label, List<ElasticSearchIndexSpec>> indexSpec, StringLogger logger, GraphDatabaseService gds) {
         this.client = client;
@@ -40,32 +44,47 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         this.indexLabels = indexSpec.keySet();
         this.logger = logger;
         this.gds = gds;
+        this.inclusionPolicies = InclusionPolicies.all()
+                .with(new NodeInclusionPolicy() {
+                    @Override
+                    public boolean include(Node node) {
+                        for (Label l: node.getLabels()) {
+                            if (indexLabels.contains(l)) return true;
+                        }
+                        return false;
+                    }
+                })
+                .with(IncludeNoRelationships.getInstance());
     }
 
     @Override
     public Collection<BulkableAction> beforeCommit(TransactionData transactionData) throws Exception {
-        //List<BulkableAction> actions = new ArrayList<>(1000);
+
+        ImprovedTransactionData improvedTransactionData = new FilteredTransactionData(new LazyTransactionData(transactionData), inclusionPolicies);
         Map<IndexId, BulkableAction> actions = new HashMap<>(1000);
-        for (Node node : transactionData.createdNodes()) {
-            if (hasLabel(node)) actions.putAll(indexRequests(node));
+
+        for (Node node: improvedTransactionData.getAllCreatedNodes()) {
+        	if (hasLabel(node)) {
+        		actions.putAll(indexRequests(node));
+        	}
         }
-        for (Node node : transactionData.deletedNodes()) {
-            if (hasLabel(node)) actions.putAll(deleteRequests(node));
+        for (Node node: improvedTransactionData.getAllDeletedNodes()) {
+        	if (hasLabel(node)) {
+        		actions.putAll(deleteRequests(node));
+        	}
         }
-        for (LabelEntry labelEntry : transactionData.assignedLabels()) {
-            if (hasLabel(labelEntry)) actions.putAll(indexRequests(labelEntry.node()));
+        for (Change<Node> nodeChange: improvedTransactionData.getAllChangedNodes()) {
+        	Set<Label> s = improvedTransactionData.removedLabels(nodeChange.getCurrent());
+        	if (!s.isEmpty()) {
+        		for (Label removedLabel: s) {
+        			actions.putAll(deleteRequests(nodeChange.getCurrent(), removedLabel));
+        		}
+        	}
+        	else {
+        		actions.putAll(indexRequests(nodeChange.getCurrent()));
+        	}
         }
-        for (LabelEntry labelEntry : transactionData.removedLabels()) {
-            if (hasLabel(labelEntry)) actions.putAll(deleteRequests(labelEntry.node(), labelEntry.label()));
-        }
-        for (PropertyEntry<Node> propEntry : transactionData.assignedNodeProperties()) {
-            if (hasLabel(propEntry))
-                actions.putAll(indexRequests(propEntry.entity()));
-        }
-        for (PropertyEntry<Node> propEntry : transactionData.removedNodeProperties()) {
-            if (hasLabel(propEntry))
-                actions.putAll(updateRequests(propEntry.entity()));
-        }
+ 
         return actions.isEmpty() ? Collections.<BulkableAction>emptyList() : actions.values();
     }
 
@@ -89,20 +108,12 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
             logger.warn("Error updating ElasticSearch ", e);
         }
     }
-
+    
     private boolean hasLabel(Node node) {
         for (Label l: node.getLabels()) {
             if (indexLabels.contains(l)) return true;
         }
         return false;
-    }
-
-    private boolean hasLabel(LabelEntry labelEntry) {
-        return indexLabels.contains(labelEntry.label());
-    }
-
-    private boolean hasLabel(PropertyEntry<Node> propEntry) {
-        return hasLabel(propEntry.entity());
     }
     
     private Map<IndexId, Index> indexRequests(Node node) {
@@ -122,6 +133,20 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         }
         return reqs;
     }
+    
+    private Map<IndexId, Delete> deleteRequests(Node node, Label removedLabel) {
+    	HashMap<IndexId, Delete> reqs = new HashMap<>();
+    	if (!indexSpecs.containsKey(removedLabel)) {
+    		return reqs;
+    	}
+    	
+    	for (ElasticSearchIndexSpec spec: indexSpecs.get(removedLabel)) {
+    		String id = id(node), indexName = spec.getIndexName();
+    		reqs.put(new IndexId(indexName, id),
+    				new Delete.Builder(id).index(indexName).type(removedLabel.name()).build());
+    	}	
+    	return reqs;
+    }
 
     private Map<IndexId, Delete> deleteRequests(Node node) {
         HashMap<IndexId, Delete> reqs = new HashMap<>();
@@ -131,48 +156,13 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
     		for (ElasticSearchIndexSpec spec: indexSpecs.get(l)) {
     		    String id = id(node), indexName = spec.getIndexName();
     			reqs.put(new IndexId(indexName, id),
-    			         new Delete.Builder(id).index(indexName).build());
+    			         new Delete.Builder(id).index(indexName).type(l.name()).build());
     		}
     	}
     	return reqs;
     }
     
-    private Map<IndexId, Delete> deleteRequests(Node node, Label label) {
-        HashMap<IndexId, Delete> reqs = new HashMap<>();
-
-        if (indexLabels.contains(label)) {
-            for (ElasticSearchIndexSpec spec: indexSpecs.get(label)) {
-                String id = id(node), indexName = spec.getIndexName();
-                reqs.put(new IndexId(indexName, id),
-                         new Delete.Builder(id)
-                                   .index(indexName)
-                                   .type(label.name())
-                                   .build());
-            }
-        }
-        return reqs;
-        
-    }
     
-    private Map<IndexId, Update> updateRequests(Node node) {
-    	HashMap<IndexId, Update> reqs = new HashMap<>();
-    	for (Label l: node.getLabels()) {
-    		if (!indexLabels.contains(l)) continue;
-
-    		for (ElasticSearchIndexSpec spec: indexSpecs.get(l)) {
-    		    String id = id(node), indexName = spec.getIndexName();
-    			reqs.put(new IndexId(indexName, id),
-    			        new Update.Builder(nodeToJson(node, spec.getProperties()))
-                    			  .type(l.name())
-                    			  .index(spec.getIndexName())
-                    			  .id(id(node))
-                    			  .build());
-    		}
-    	}
-    	return reqs;
-    }
-
-
     private String id(Node node) {
         return String.valueOf(node.getId());
     }
@@ -182,8 +172,10 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         json.put("id", id(node));
         json.put("labels", labels(node));
         for (String prop : properties) {
-            Object value = node.getProperty(prop);
-            json.put(prop, value);
+        	if (node.hasProperty(prop)) {
+        		Object value = node.getProperty(prop);
+        		json.put(prop, value);
+        	}
         }
         return json;
     }
