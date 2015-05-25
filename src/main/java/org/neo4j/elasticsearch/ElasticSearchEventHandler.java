@@ -13,7 +13,11 @@ import org.neo4j.graphdb.event.TransactionData;
 import org.neo4j.graphdb.event.TransactionEventHandler;
 import org.neo4j.kernel.impl.util.StringLogger;
 
+import com.graphaware.common.policy.InclusionPolicies;
+import com.graphaware.common.policy.NodeInclusionPolicy;
+import com.graphaware.common.policy.none.IncludeNoRelationships;
 import com.graphaware.tx.event.improved.api.Change;
+import com.graphaware.tx.event.improved.api.FilteredTransactionData;
 import com.graphaware.tx.event.improved.api.ImprovedTransactionData;
 import com.graphaware.tx.event.improved.api.LazyTransactionData;
 
@@ -31,6 +35,7 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
     private final Map<Label, List<ElasticSearchIndexSpec>> indexSpecs;
     private final Set<Label> indexLabels;
     private boolean useAsyncJest = true;
+    private final InclusionPolicies inclusionPolicies;
     
 
     public ElasticSearchEventHandler(JestClient client, Map<Label, List<ElasticSearchIndexSpec>> indexSpec, StringLogger logger, GraphDatabaseService gds) {
@@ -39,12 +44,23 @@ class ElasticSearchEventHandler implements TransactionEventHandler<Collection<Bu
         this.indexLabels = indexSpec.keySet();
         this.logger = logger;
         this.gds = gds;
+        this.inclusionPolicies = InclusionPolicies.all()
+                .with(new NodeInclusionPolicy() {
+                    @Override
+                    public boolean include(Node node) {
+                        for (Label l: node.getLabels()) {
+                            if (indexLabels.contains(l)) return true;
+                        }
+                        return false;
+                    }
+                })
+                .with(IncludeNoRelationships.getInstance());
     }
 
     @Override
     public Collection<BulkableAction> beforeCommit(TransactionData transactionData) throws Exception {
 
-    	ImprovedTransactionData improvedTransactionData = new LazyTransactionData(transactionData);
+        ImprovedTransactionData improvedTransactionData = new FilteredTransactionData(new LazyTransactionData(transactionData), inclusionPolicies);
         Map<IndexId, BulkableAction> actions = new HashMap<>(1000);
 
         for (Node node: improvedTransactionData.getAllCreatedNodes()) {

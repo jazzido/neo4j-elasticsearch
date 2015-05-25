@@ -2,8 +2,9 @@
 	xmlns="http://maven.apache.org/POM/4.0.0"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<properties>
-		<neo4j.version>2.2.1</neo4j.version>
-		<graphaware.version>2.2.1.30</graphaware.version>
+		<neo4j.version>2.2.2</neo4j.version>
+		<graphaware.version>2.2.2.31</graphaware.version>
+		<jest.version>0.1.5</jest.version>
 	</properties>
 
 	<modelVersion>4.0.0</modelVersion>
@@ -48,7 +49,7 @@
 		<dependency>
 			<groupId>io.searchbox</groupId>
 			<artifactId>jest</artifactId>
-			<version>0.1.5</version>
+			<version>${jest.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j</groupId>
