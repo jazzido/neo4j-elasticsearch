@@ -47,6 +47,8 @@ public class ElasticSearchImportApp extends AbstractApp {
         
         GraphDatabaseAPI db = getServer().getDb();
 
+        Map<Label, List<ElasticSearchIndexSpec>> indexSpecs = ElasticSearchIndexSpecParser.parseIndexSpec(parser.option("s", null));
+        
         // setup ES client
         String esHost = parser.option("h", ES_DEFAULT_HOST);
         JestClientFactory factory = new JestClientFactory();
@@ -54,10 +56,7 @@ public class ElasticSearchImportApp extends AbstractApp {
                 .Builder(esHost)
                 .build());
         esClient = factory.getObject();
-        
         out.println(String.format("Connected to ES cluster: %s", esHost));
-        
-        Map<Label, List<ElasticSearchIndexSpec>> indexSpecs = ElasticSearchIndexSpecParser.parseIndexSpec(parser.option("s", null));        
         
         for (Map.Entry<Label, List<ElasticSearchIndexSpec>> e: indexSpecs.entrySet()) {
             for (ElasticSearchIndexSpec spec: e.getValue()) {
@@ -68,6 +67,8 @@ public class ElasticSearchImportApp extends AbstractApp {
                 esClient.execute(reqs);
             }
         }
+        
+        esClient.shutdownClient();
         
         return Continuation.INPUT_COMPLETE;
     }

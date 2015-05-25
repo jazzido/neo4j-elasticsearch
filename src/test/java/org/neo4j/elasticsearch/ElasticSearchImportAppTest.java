@@ -10,6 +10,7 @@ import io.searchbox.indices.CreateIndex;
 import io.searchbox.indices.DeleteIndex;
 
 import java.io.Serializable;
+import java.text.ParseException;
 import java.util.Collections;
 
 import org.junit.After;
@@ -81,7 +82,7 @@ public class ElasticSearchImportAppTest {
         assertEquals(new Integer(dataItems), result.getTotal());
     }
     
-    @Test
+    @Test(expected=Exception.class)
     public void testBadSyntaxShouldThrow() throws Exception {
         neo4jClient.evaluate("elasticsearch-index -s index_name:Label(foo,bar");
     }
